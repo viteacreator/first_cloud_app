@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-lab-config
+data:
+  APP_NAME: "cloud-lab-hello"
+  APP_MESSAGE: "Application running inside Kubernetes with Rancher Desktop"

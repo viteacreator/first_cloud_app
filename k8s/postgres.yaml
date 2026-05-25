@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-lab-hello
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloud-lab-hello
+  template:
+    metadata:
+      labels:
+        app: cloud-lab-hello
+    spec:
+      containers:
+        - name: cloud-lab-hello
+          image: cloud-lab-hello:1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cloud-lab-config
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

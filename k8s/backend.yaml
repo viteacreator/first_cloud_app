@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-lab-hello
+spec:
+  type: ClusterIP
+  selector:
+    app: cloud-lab-hello
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
