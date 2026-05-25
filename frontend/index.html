@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Cloud Device Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="top-bar">
+            <div>
+                <h1>Cloud Device Monitor</h1>
+                <p>Frontend + Backend + PostgreSQL + Kubernetes</p>
+            </div>
+
+            <div class="user-box">
+                <span id="currentUser">Not logged in</span>
+                <button id="logoutButton" class="secondary hidden">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <section id="loginView" class="panel login-panel">
+                <h2>Login</h2>
+                <p class="muted">Default user: <b>admin</b> / <b>admin123</b></p>
+
+                <form id="loginForm">
+                    <label>
+                        Username
+                        <input id="loginUsername" type="text" value="admin" required>
+                    </label>
+
+                    <label>
+                        Password
+                        <input id="loginPassword" type="password" value="admin123" required>
+                    </label>
+
+                    <button type="submit">Login</button>
+                </form>
+
+                <div class="divider"></div>
+
+                <h3>Create account</h3>
+
+                <form id="registerForm">
+                    <label>
+                        New username
+                        <input id="registerUsername" type="text" minlength="3">
+                    </label>
+
+                    <label>
+                        New password
+                        <input id="registerPassword" type="password" minlength="6">
+                    </label>
+
+                    <button type="submit" class="secondary">Register</button>
+                </form>
+
+                <p id="loginMessage" class="message"></p>
+            </section>
+
+            <section id="dashboardView" class="hidden">
+                <section class="cards">
+                    <div class="card">
+                        <span class="card-label">Devices</span>
+                        <strong id="deviceCount">0</strong>
+                    </div>
+
+                    <div class="card">
+                        <span class="card-label">Data fields</span>
+                        <strong id="fieldCount">0</strong>
+                    </div>
+
+                    <div class="card">
+                        <span class="card-label">Measurements</span>
+                        <strong id="measurementCount">0</strong>
+                    </div>
+
+                    <div class="card">
+                        <span class="card-label">Selected device</span>
+                        <strong id="selectedDeviceShort">None</strong>
+                    </div>
+                </section>
+
+                <section class="grid">
+                    <div class="panel">
+                        <h2>Add device</h2>
+
+                        <form id="deviceForm">
+                            <label>
+                                Name
+                                <input id="deviceName" type="text" placeholder="Battery Tester" required>
+                            </label>
+
+                            <label>
+                                Type
+                                <input id="deviceType" type="text" placeholder="VMU / Sensor / Monitor" required>
+                            </label>
+
+                            <label>
+                                Location
+                                <input id="deviceLocation" type="text" placeholder="Lab bench" required>
+                            </label>
+
+                            <div class="field-editor">
+                                <div class="field-editor-header">
+                                    <h3>Device data fields</h3>
+                                    <span class="muted">Example: Voltage, Current, Flux, Speed, Light</span>
+                                </div>
+
+                                <div class="quick-fields">
+                                    <button type="button" data-label="Voltage" data-unit="V">+ Voltage</button>
+                                    <button type="button" data-label="Current" data-unit="A">+ Current</button>
+                                    <button type="button" data-label="Temperature" data-unit="°C">+ Temperature</button>
+                                    <button type="button" data-label="Power" data-unit="W">+ Power</button>
+                                    <button type="button" data-label="Luminosity" data-unit="lux">+ Light</button>
+                                    <button type="button" data-label="Speed" data-unit="m/s">+ Speed</button>
+                                    <button type="button" data-label="Flux" data-unit="L/min">+ Flux</button>
+                                </div>
+
+                                <div class="inline-fields">
+                                    <input id="newFieldLabel" type="text" placeholder="Custom field name">
+                                    <input id="newFieldUnit" type="text" placeholder="Unit">
+                                    <button id="addFieldButton" type="button" class="secondary">Add field</button>
+                                </div>
+
+                                <div id="newDeviceFields" class="field-list"></div>
+                            </div>
+
+                            <button type="submit">Add device</button>
+                        </form>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Add measurement</h2>
+                        <p id="measurementHint" class="muted">Select a device first.</p>
+
+                        <form id="measurementForm">
+                            <label>
+                                Timestamp
+                                <input id="measurementTimestamp" type="datetime-local">
+                            </label>
+
+                            <div id="measurementFields" class="measurement-fields"></div>
+
+                            <button type="submit">Add measurement</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <h2>Devices</h2>
+                                <p class="muted">Click a device to select it.</p>
+                            </div>
+
+                            <button id="deleteDeviceButton" type="button" class="danger">Delete selected device</button>
+                        </div>
+                        <div id="deviceList" class="device-list"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="chart-title-row">
+                            <div>
+                                <h2>Chart</h2>
+                                <p id="selectedDeviceTitle" class="muted">No device selected.</p>
+                            </div>
+
+                            <button id="resetChartButton" type="button" class="secondary">Reset view</button>
+                        </div>
+
+                        <div class="chart-controls">
+                            <label>
+                                Field
+                                <select id="chartFieldSelect"></select>
+                            </label>
+
+                            <label>
+                                Period
+                                <select id="chartPeriodSelect">
+                                    <option value="1h">Last 1 hour</option>
+                                    <option value="6h">Last 6 hours</option>
+                                    <option value="24h" selected>Last 24 hours</option>
+                                    <option value="7d">Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                    <option value="all">All data</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div id="chartWrapper" class="chart-wrapper">
+                            <canvas id="chartCanvas" width="900" height="360"></canvas>
+                            <div id="chartTooltip" class="chart-tooltip hidden"></div>
+                        </div>
+
+                        <p class="chart-help">
+                            Wheel = horizontal zoom. Shift + wheel = vertical zoom. Drag = pan. Double click = reset.
+                        </p>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>Latest values for selected device</h2>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Field</th>
+                                    <th>Value</th>
+                                    <th>Unit</th>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="measurementTable"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="adminPanel" class="panel hidden">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Admin users</h2>
+                            <p class="muted">User deletion is available only for administrator accounts.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Devices</th>
+                                    <th>Measurements</th>
+                                    <th>Created</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTable"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <p id="dashboardMessage" class="message"></p>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

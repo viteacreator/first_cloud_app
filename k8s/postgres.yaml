@@ -1,35 +1,77 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: lab-cloud-app
+type: Opaque
+stringData:
+  POSTGRES_DB: cloud_lab
+  POSTGRES_USER: cloud_user
+  POSTGRES_PASSWORD: cloud_pass
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: lab-cloud-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cloud-lab-hello
+  name: postgres
+  namespace: lab-cloud-app
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: cloud-lab-hello
+      app: postgres
   template:
     metadata:
       labels:
-        app: cloud-lab-hello
+        app: postgres
     spec:
       containers:
-        - name: cloud-lab-hello
-          image: cloud-lab-hello:1.0
-          imagePullPolicy: IfNotPresent
+        - name: postgres
+          image: postgres:16-alpine
           ports:
-            - containerPort: 8080
+            - containerPort: 5432
           envFrom:
-            - configMapRef:
-                name: cloud-lab-config
+            - secretRef:
+                name: postgres-secret
           readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 3
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - cloud_user
+                - -d
+                - cloud_lab
+            initialDelaySeconds: 5
             periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: lab-cloud-app
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
