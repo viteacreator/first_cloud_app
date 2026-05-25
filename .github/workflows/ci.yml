@@ -1,0 +1,68 @@
+name: CI - Test and build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-backend:
+    name: Test backend with PostgreSQL
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cloud_lab
+          POSTGRES_USER: cloud_user
+          POSTGRES_PASSWORD: cloud_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cloud_user -d cloud_lab"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t cloud-lab-backend:${{ github.sha }} ./backend
+
+      - name: Run backend container
+        run: |
+          docker run -d \
+            --name test-backend \
+            --network host \
+            -e DATABASE_URL="postgresql://cloud_user:cloud_pass@localhost:5432/cloud_lab" \
+            -e JWT_SECRET="ci-secret" \
+            cloud-lab-backend:${{ github.sha }}
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5000/api/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs test-backend
+          exit 1
+
+  build-frontend:
+    name: Build frontend image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build frontend image
+        run: docker build -t cloud-lab-frontend:${{ github.sha }} ./frontend
