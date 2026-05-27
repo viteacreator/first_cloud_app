@@ -1,41 +1,41 @@
 name: Deploy to Local Rancher Desktop
 
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - CI/CD - Build, Test and Publish Images
+    types:
+      - completed
 
 jobs:
   deploy-local:
-    name: Deploy on self-hosted runner
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show kubectl context
-        shell: powershell
-        run: |
-          kubectl config current-context
-          kubectl get nodes
-
       - name: Apply Kubernetes manifests
         shell: powershell
         run: |
           kubectl apply -f k8s/
 
-      - name: Restart application deployments
+      - name: Restart deployments
         shell: powershell
         run: |
-          kubectl rollout restart deployment/backend -n lab-cloud-app
-          kubectl rollout restart deployment/frontend -n lab-cloud-app
+          kubectl rollout restart deployment/postgres -n lab-k8s
+          kubectl rollout restart deployment/backend -n lab-k8s
+          kubectl rollout restart deployment/frontend -n lab-k8s
 
       - name: Wait for rollout
         shell: powershell
         run: |
-          kubectl rollout status deployment/backend -n lab-cloud-app
-          kubectl rollout status deployment/frontend -n lab-cloud-app
+          kubectl rollout status deployment/postgres -n lab-k8s
+          kubectl rollout status deployment/backend -n lab-k8s
+          kubectl rollout status deployment/frontend -n lab-k8s
 
-      - name: Show application status
+      - name: Show status
         shell: powershell
         run: |
-          kubectl get all -n lab-cloud-app
+          kubectl get all -n lab-k8s
