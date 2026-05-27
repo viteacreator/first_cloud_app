@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: cloud-lab-backend:1.2
+          image: ghcr.io/viteacreator/lab-ac-backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000

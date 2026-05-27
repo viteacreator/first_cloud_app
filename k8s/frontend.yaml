@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: cloud-lab-frontend:1.2
+          image: ghcr.io/viteacreator/lab-ac-frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
