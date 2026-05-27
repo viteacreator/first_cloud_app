@@ -16,7 +16,7 @@ spec:
       containers:
         - name: frontend
           image: ghcr.io/viteacreator/lab-ac-frontend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
 ---
