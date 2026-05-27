@@ -1,0 +1,124 @@
+name: CI/CD - Build, Test and Publish Images
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/lab-ac-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/lab-ac-frontend
+
+jobs:
+  build-test-publish:
+    name: Build, test and publish
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cloud_lab
+          POSTGRES_USER: cloud_user
+          POSTGRES_PASSWORD: cloud_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cloud_user -d cloud_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show build context
+        run: |
+          pwd
+          ls -la
+          ls -la backend
+          ls -la frontend
+
+      - name: Build backend image for test
+        run: docker build -t cloud-lab-backend:ci ./backend
+
+      - name: Run backend container
+        run: |
+          docker run -d \
+            --name test-backend \
+            --network host \
+            -e DATABASE_URL="postgresql://cloud_user:cloud_pass@localhost:5432/cloud_lab" \
+            -e JWT_SECRET="ci-secret" \
+            cloud-lab-backend:ci
+
+      - name: Test backend health endpoint
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5000/api/health; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            echo "Waiting for backend..."
+            sleep 2
+          done
+
+          echo "Backend did not become healthy"
+          docker logs test-backend
+          exit 1
+
+      - name: Build frontend image for test
+        run: docker build -t cloud-lab-frontend:ci ./frontend
+
+      - name: Run frontend container
+        run: docker run -d --name test-frontend -p 8080:80 cloud-lab-frontend:ci
+
+      - name: Test frontend response
+        run: |
+          for i in {1..15}; do
+            if curl -fsS http://localhost:8080 | grep -i "html"; then
+              echo "Frontend is responding"
+              exit 0
+            fi
+            echo "Waiting for frontend..."
+            sleep 2
+          done
+
+          echo "Frontend did not respond correctly"
+          docker logs test-frontend
+          exit 1
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push backend image
+        if: github.event_name != 'pull_request'
+        run: |
+          docker build \
+            -t $BACKEND_IMAGE:${{ github.sha }} \
+            -t $BACKEND_IMAGE:latest \
+            ./backend
+
+          docker push $BACKEND_IMAGE:${{ github.sha }}
+          docker push $BACKEND_IMAGE:latest
+
+      - name: Build and push frontend image
+        if: github.event_name != 'pull_request'
+        run: |
+          docker build \
+            -t $FRONTEND_IMAGE:${{ github.sha }} \
+            -t $FRONTEND_IMAGE:latest \
+            ./frontend
+
+          docker push $FRONTEND_IMAGE:${{ github.sha }}
+          docker push $FRONTEND_IMAGE:latest
