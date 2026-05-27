@@ -1,0 +1,41 @@
+name: Deploy to Local Rancher Desktop
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-local:
+    name: Deploy on self-hosted runner
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show kubectl context
+        shell: powershell
+        run: |
+          kubectl config current-context
+          kubectl get nodes
+
+      - name: Apply Kubernetes manifests
+        shell: powershell
+        run: |
+          kubectl apply -f k8s/
+
+      - name: Restart application deployments
+        shell: powershell
+        run: |
+          kubectl rollout restart deployment/backend -n lab-cloud-app
+          kubectl rollout restart deployment/frontend -n lab-cloud-app
+
+      - name: Wait for rollout
+        shell: powershell
+        run: |
+          kubectl rollout status deployment/backend -n lab-cloud-app
+          kubectl rollout status deployment/frontend -n lab-cloud-app
+
+      - name: Show application status
+        shell: powershell
+        run: |
+          kubectl get all -n lab-cloud-app
